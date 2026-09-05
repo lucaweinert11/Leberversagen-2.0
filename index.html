@@ -21,6 +21,8 @@
     --muted:#8a8a86;
     --danger:#dc2626;
     --safe:#000;
+    --karten-h:min(450px, calc(72vw * 1.5), 50vh);
+    --karten-w:calc(var(--karten-h) / 1.5);
   }
   html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;overflow:hidden;}
   #app{height:100%;width:100%;position:relative;}
@@ -51,7 +53,7 @@
   .ghost-btn:active{border-color:var(--amber);color:var(--amber);}
 
   /* ===== GAME SCREEN ===== */
-  #gameScreen{align-items:center;justify-content:space-between;padding:20px 16px 28px;}
+  #gameScreen{align-items:center;justify-content:space-between;padding:14px 16px 28px;gap:8px;}
   .game-header{width:100%;display:flex;justify-content:space-between;align-items:flex-start;flex-shrink:0;}
   .back-btn{background:none;border:none;color:var(--muted);font-size:22px;cursor:pointer;padding:4px 8px;}
   .game-title-small{font-family:'Bebas Neue';font-size:20px;color:var(--amber);letter-spacing:0.03em;text-align:center;}
@@ -59,16 +61,17 @@
   .counter-num{font-family:'Bebas Neue';font-size:34px;line-height:1;}
   .counter-label{font-size:9px;color:var(--muted);letter-spacing:0.1em;text-transform:uppercase;}
 
-  .stage{flex:1;display:flex;align-items:center;justify-content:center;width:100%;perspective:1200px;position:relative;cursor:pointer;}
-  .stack-shadow{position:absolute;width:min(72vw,300px);height:calc(min(72vw,300px) * 1.5);border-radius:16px;background:var(--surface);border:1px solid var(--border);}
+  .stage{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;width:100%;perspective:1200px;position:relative;cursor:pointer;}
+  .stack-shadow{position:absolute;width:var(--karten-w);height:var(--karten-h);border-radius:16px;background:var(--surface);border:1px solid var(--border);}
   .stack-shadow:nth-child(1){transform:rotate(-3deg) translate(-5px,5px);}
   .stack-shadow:nth-child(2){transform:rotate(2deg) translate(4px,4px);}
 
-  .card-wrapper{position:relative;width:min(72vw,300px);height:calc(min(72vw,300px) * 1.5);z-index:10;transform-style:preserve-3d;transition:transform .5s cubic-bezier(.4,.2,.2,1);}
+  .card-wrapper{position:relative;width:var(--karten-w);height:var(--karten-h);z-index:10;transform-style:preserve-3d;transition:transform .5s cubic-bezier(.4,.2,.2,1);}
   .card-wrapper.flipped{transform:rotateY(180deg);}
-  .card-face{position:absolute;inset:0;backface-visibility:hidden;border-radius:16px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.7);display:flex;flex-direction:column;}
-  .card-back{background:linear-gradient(135deg,#1c1c1c,#0d0d0d);border:2px solid var(--amber);display:flex;align-items:center;justify-content:center;}
-  .card-back-logo{font-family:'Bebas Neue';font-size:30px;color:var(--amber);letter-spacing:0.05em;opacity:0.85;text-align:center;padding:20px;}
+  .card-face{position:absolute;inset:0;-webkit-backface-visibility:hidden;backface-visibility:hidden;transform-style:flat;transition:visibility 0s linear .25s;border-radius:16px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.7);display:flex;flex-direction:column;}
+  .card-back{background:linear-gradient(135deg,#1c1c1c,#0d0d0d);border:2px solid var(--amber);}
+  .card-wrapper.flipped .card-back{visibility:hidden;}
+  .card-wrapper:not(.flipped) .card-front{visibility:hidden;}
   .card-front{background:var(--surface);transform:rotateY(180deg);border:1px solid var(--border);}
   .card-front .titel-bar{background:var(--surface2);padding:14px 10px;text-align:center;font-family:'Bebas Neue';font-size:22px;letter-spacing:0.03em;color:var(--amber);flex-shrink:0;}
   .card-front .foto-area{flex:1;background:#000;position:relative;overflow:hidden;min-height:0;}
@@ -77,7 +80,7 @@
   .card-front .aufgabe-bar{background:var(--surface2);padding:14px 12px;text-align:center;font-size:15px;line-height:1.35;flex-shrink:0;max-height:36%;overflow-y:auto;}
   .todes-flag{position:absolute;top:8px;right:8px;background:var(--danger);color:#fff;font-size:10px;padding:3px 8px;border-radius:20px;letter-spacing:0.05em;z-index:5;font-weight:600;}
 
-  .bottom-controls{width:100%;max-width:340px;display:flex;flex-direction:column;gap:12px;flex-shrink:0;}
+  .bottom-controls{width:100%;max-width:340px;display:flex;flex-direction:column;gap:12px;flex-shrink:0;position:relative;z-index:30;}
   .progress-track{width:100%;height:3px;background:var(--surface2);border-radius:2px;overflow:hidden;}
   .progress-fill{height:100%;background:var(--amber);border-radius:2px;transition:width .4s ease;}
   .draw-btn{width:100%;padding:16px;border:none;border-radius:12px;background:var(--amber);color:#0d0d0d;font-family:'Bebas Neue';font-size:20px;letter-spacing:0.08em;cursor:pointer;}
@@ -135,11 +138,9 @@
   .spinner{width:20px;height:20px;border:2px solid rgba(255,255,255,0.3);border-top-color:var(--amber);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto;}
   @keyframes spin{to{transform:rotate(360deg);}}
   /* ===== NEU: Logo im Spiel, Rueckseiten-Bild, Vorschau ===== */
-  .game-logo-small{width:min(170px,44vw);height:auto;border-radius:10px;display:block;margin:4px auto 2px;opacity:.95;flex-shrink:0;}
+  .game-logo-head{width:min(190px,42vw);height:auto;border-radius:10px;display:block;align-self:center;}
   .card-back{position:relative;}
   .card-back-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
-  .card-back-schleier{position:absolute;inset:0;background:rgba(0,0,0,0.40);}
-  .card-back-logo{position:relative;z-index:2;text-shadow:0 2px 10px rgba(0,0,0,0.9);}
 
   .karten-vorschau{width:186px;height:279px;margin:0 auto;border-radius:14px;overflow:hidden;background:var(--surface);border:1px solid var(--border);display:flex;flex-direction:column;}
   .karten-vorschau .vs-titel{background:var(--surface2);padding:7px 6px;text-align:center;font-family:'Bebas Neue';font-size:15px;letter-spacing:0.03em;color:var(--amber);flex-shrink:0;}
@@ -150,7 +151,6 @@
 
   .rueck-vorschau{width:100%;height:190px;border-radius:12px;overflow:hidden;position:relative;background:linear-gradient(135deg,#1c1c1c,#0d0d0d);border:2px solid var(--amber);touch-action:none;cursor:grab;}
   .rueck-vorschau img{width:100%;height:100%;object-fit:cover;pointer-events:none;-webkit-user-drag:none;}
-  .rueck-text{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue';font-size:24px;color:var(--amber);text-align:center;text-shadow:0 2px 10px rgba(0,0,0,0.9);pointer-events:none;}
 
   .zoom-row{display:flex;align-items:center;gap:10px;}
   .zoom-row span{font-size:12px;color:var(--muted);flex-shrink:0;}
@@ -188,14 +188,12 @@
   <div class="screen" id="gameScreen">
     <div class="game-header">
       <button class="back-btn" onclick="leaveGame()">←</button>
-      <div class="game-title-small" id="gameTitleSmall"></div>
+      <img class="game-logo-head" id="gameLogo" alt="">
       <div class="counter-box">
         <div class="counter-num" id="deckCount">0</div>
         <div class="counter-label">im Deck</div>
       </div>
     </div>
-
-    <img class="game-logo-small" id="gameLogo" alt="">
 
     <div class="stage" id="stage" onclick="handleStageTap()">
       <div class="stack-shadow"></div>
@@ -203,8 +201,6 @@
       <div class="card-wrapper" id="cardWrapper">
         <div class="card-face card-back">
           <img class="card-back-img" id="cardBackImg" alt="" style="display:none;">
-          <div class="card-back-schleier" id="cardBackSchleier" style="display:none;"></div>
-          <div class="card-back-logo">Tippen zum<br>Ziehen</div>
         </div>
         <div class="card-face card-front" id="cardFront">
           <div class="titel-bar" id="cfTitel"></div>
@@ -355,8 +351,6 @@
           <label style="margin-top:8px;">Bild für die Kartenrückseite</label>
           <div class="rueck-vorschau" id="rueckVorschau">
             <img id="rueckImg" alt="" style="display:none;">
-            <div class="card-back-schleier" id="rueckSchleier" style="display:none;"></div>
-            <div class="rueck-text">Tippen zum<br>Ziehen</div>
           </div>
           <div class="hint-small">Bild in der Vorschau verschieben</div>
           <div class="zoom-row">
@@ -642,7 +636,6 @@ async function enterGame(spiel){
   currentGame = spiel;
   currentGameId = spiel.id;
   currentGameName = spiel.name;
-  document.getElementById('gameTitleSmall').textContent = spiel.name;
   rueckseiteAnwenden();
   showScreen('gameScreen');
   await loadCardsAndState();
@@ -668,17 +661,14 @@ function stopPolling(){ if(pollInterval) clearInterval(pollInterval); pollInterv
 /* ---------- RUECKSEITE DER KARTE ---------- */
 function rueckseiteAnwenden(){
   const img = document.getElementById('cardBackImg');
-  const schleier = document.getElementById('cardBackSchleier');
   const url = currentGame && currentGame.back_url;
   if(url){
     img.src = url;
     img.style.display = 'block';
-    schleier.style.display = 'block';
     posAnwenden(img, posLesen(currentGame.back_pos));
   } else {
     img.removeAttribute('src');
     img.style.display = 'none';
-    schleier.style.display = 'none';
   }
 }
 
@@ -1094,17 +1084,14 @@ function fotoPosReset(){
 /* ---------- VORSCHAU DER RUECKSEITE ---------- */
 function rueckVorschauAktualisieren(){
   const img = document.getElementById('rueckImg');
-  const schleier = document.getElementById('rueckSchleier');
   const quelle = (currentGame && currentGame._backVorschau) || (currentGame && currentGame.back_url) || null;
   if(quelle){
     if(img.getAttribute('src') !== quelle) img.src = quelle;
     img.style.display = 'block';
-    schleier.style.display = 'block';
     posAnwenden(img, backPos);
   } else {
     img.removeAttribute('src');
     img.style.display = 'none';
-    schleier.style.display = 'none';
   }
 }
 function backZoomGeaendert(){
