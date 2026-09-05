@@ -8,7 +8,6 @@
 <meta name="theme-color" content="#0d0d0d">
 <title>Leberversagen</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" onerror="var s=document.createElement('script');s.src='https://unpkg.com/@supabase/supabase-js@2';document.head.appendChild(s);"></script>
 <style>
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
   :root{
@@ -327,6 +326,83 @@
    LEBERVERSAGEN APP
    ============================================================ */
 
+
+/* ---------- EIGENER SUPABASE-CLIENT ----------
+   Ersetzt die externe Bibliothek vom CDN. Spricht direkt die REST-API an,
+   damit die App nicht von einem fremden Server abhaengt. */
+function sbClient(baseUrl, key){
+  const root = baseUrl.replace(/\/+$/,'');
+  const rest = root + '/rest/v1/';
+  function kopf(){ return { apikey:key, Authorization:'Bearer '+key, 'Content-Type':'application/json' }; }
+
+  function tabelle(name){
+    const q = { table:name, filters:[], order:null, method:'GET', body:null, single:null, columns:'*' };
+    async function lauf(){
+      let url = rest + encodeURIComponent(q.table);
+      const params = [];
+      if(q.method === 'GET') params.push('select=' + encodeURIComponent(q.columns));
+      q.filters.forEach(f=>params.push(f));
+      if(q.order) params.push('order=' + q.order);
+      if(params.length) url += '?' + params.join('&');
+      const opts = { method:q.method, headers:kopf() };
+      if(q.method !== 'GET') opts.headers['Prefer'] = 'return=representation';
+      if(q.body !== null) opts.body = JSON.stringify(q.body);
+      try{
+        const r = await fetch(url, opts);
+        const text = await r.text();
+        let data = null;
+        if(text){ try{ data = JSON.parse(text); }catch(_){ data = null; } }
+        if(!r.ok){
+          const msg = (data && (data.message || data.hint || data.error)) || ('HTTP ' + r.status + ' ' + text.slice(0,200));
+          return { data:null, error:{ message: msg } };
+        }
+        if(q.single && Array.isArray(data)) data = data.length ? data[0] : null;
+        return { data:data, error:null };
+      }catch(e){
+        return { data:null, error:{ message: (e && e.message) ? e.message : String(e) } };
+      }
+    }
+    const b = {
+      select(cols){ if(q.method === 'GET' && cols) q.columns = cols; return b; },
+      eq(col,val){ q.filters.push(encodeURIComponent(col) + '=eq.' + encodeURIComponent(val)); return b; },
+      order(col,opts){ const asc = !opts || opts.ascending !== false; q.order = encodeURIComponent(col) + '.' + (asc?'asc':'desc'); return b; },
+      insert(body){ q.method='POST'; q.body=body; return b; },
+      update(body){ q.method='PATCH'; q.body=body; return b; },
+      delete(){ q.method='DELETE'; return b; },
+      single(){ q.single=true; return b; },
+      maybeSingle(){ q.single=true; return b; },
+      then(ok,fehler){ return lauf().then(ok,fehler); }
+    };
+    return b;
+  }
+
+  return {
+    from: tabelle,
+    storage: {
+      from(bucket){
+        return {
+          async upload(pfad, datei, opts){
+            try{
+              const r = await fetch(root + '/storage/v1/object/' + bucket + '/' + pfad, {
+                method:'POST',
+                headers:{ apikey:key, Authorization:'Bearer '+key,
+                          'x-upsert': (opts && opts.upsert) ? 'true' : 'false',
+                          'Content-Type': datei.type || 'application/octet-stream' },
+                body: datei
+              });
+              if(!r.ok) return { data:null, error:{ message:'Upload fehlgeschlagen (HTTP ' + r.status + ')' } };
+              return { data:{}, error:null };
+            }catch(e){ return { data:null, error:{ message:(e && e.message) ? e.message : String(e) } }; }
+          },
+          getPublicUrl(pfad){
+            return { data:{ publicUrl: root + '/storage/v1/object/public/' + bucket + '/' + pfad } };
+          }
+        };
+      }
+    }
+  };
+}
+
 let supabase = null;
 let currentGameId = null;
 let currentGameName = '';
@@ -360,7 +436,7 @@ function initApp(){
   localStorage.removeItem('sb_url');
   localStorage.removeItem('sb_key');
   try{
-    supabase = window.supabase.createClient(SB_URL, SB_KEY);
+    supabase = sbClient(SB_URL, SB_KEY);
     showScreen('startScreen');
     loadGamesList();
   }catch(e){
@@ -374,7 +450,7 @@ function saveConfig(){
   if(!url || !key){ showToast('Bitte beide Felder ausfuellen'); return; }
   localStorage.setItem('sb_url', url);
   localStorage.setItem('sb_key', key);
-  supabase = window.supabase.createClient(url, key);
+  supabase = sbClient(url, key);
   showScreen('startScreen');
   loadGamesList();
 }
@@ -900,16 +976,12 @@ async function confirmDeleteGame(){
 
 /* ---------- INIT ---------- */
 function boot(){
-  let versuche = 0;
-  (function warte(){
-    if(window.supabase && window.supabase.createClient){ initApp(); return; }
-    if(++versuche > 100){
-      document.getElementById('gamesList').innerHTML =
-        '<div class="empty-hint">Die Supabase-Bibliothek konnte nicht geladen werden.<br>Internetverbindung oder Adblocker pruefen und Seite neu laden.</div>';
-      return;
-    }
-    setTimeout(warte, 100);
-  })();
+  try{
+    initApp();
+  }catch(e){
+    document.getElementById('gamesList').innerHTML =
+      '<div class="empty-hint">Fehler beim Start:<br><br>' + ((e && e.message) ? e.message : String(e)) + '</div>';
+  }
 }
 if(document.readyState === 'loading'){ document.addEventListener('DOMContentLoaded', boot); } else { boot(); }
 </script>
