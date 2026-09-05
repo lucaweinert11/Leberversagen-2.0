@@ -28,7 +28,7 @@
     --karten-w:calc(var(--karten-h) / 1.5);
   }
   html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;overflow:hidden;}
-  #app{height:100%;width:100%;position:relative;}
+  #app{height:100%;width:100%;position:relative;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);}
   .screen{position:absolute;inset:0;display:none;flex-direction:column;}
   .screen.active{display:flex;}
 
@@ -40,7 +40,7 @@
   #configScreen button{width:100%;max-width:340px;padding:14px;border:none;border-radius:10px;background:var(--amber);color:#0d0d0d;font-family:'Bebas Neue';font-size:18px;letter-spacing:0.06em;cursor:pointer;}
 
   /* ===== START SCREEN ===== */
-  #startScreen{align-items:center;justify-content:space-between;padding:40px 24px 32px;}
+  #startScreen{align-items:center;justify-content:space-between;padding:24px 24px 20px;}
   .logo-wrap{display:flex;flex-direction:column;align-items:center;gap:6px;padding-top:20px;}
   .logo-wrap img{width:min(320px,80vw);height:auto;border-radius:14px;box-shadow:0 8px 30px rgba(0,0,0,0.5);}
   .logo-wrap .brand-fallback{font-family:'Bebas Neue';font-size:34px;color:var(--amber);letter-spacing:0.04em;}
@@ -56,7 +56,7 @@
   .ghost-btn:active{border-color:var(--amber);color:var(--amber);}
 
   /* ===== GAME SCREEN ===== */
-  #gameScreen{align-items:center;justify-content:space-between;padding:14px 16px 28px;gap:8px;}
+  #gameScreen{align-items:center;justify-content:space-between;padding:10px 16px 16px;gap:8px;}
   .game-header{width:100%;display:flex;justify-content:space-between;align-items:flex-start;flex-shrink:0;}
   .back-btn{background:none;border:none;color:var(--muted);font-size:22px;cursor:pointer;padding:4px 8px;}
   .game-title-small{font-family:'Bebas Neue';font-size:20px;color:var(--amber);letter-spacing:0.03em;text-align:center;}
@@ -95,7 +95,7 @@
   /* ===== HISTORY MODAL ===== */
   .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:100;display:none;align-items:flex-end;justify-content:center;}
   .modal-overlay.active{display:flex;}
-  .modal-sheet{background:var(--bg);border-radius:20px 20px 0 0;width:100%;max-width:480px;max-height:82vh;display:flex;flex-direction:column;border-top:1px solid var(--border);}
+  .modal-sheet{background:var(--bg);border-radius:20px 20px 0 0;width:100%;max-width:480px;max-height:82vh;display:flex;flex-direction:column;border-top:1px solid var(--border);padding-bottom:env(safe-area-inset-bottom);}
   .modal-header{display:flex;justify-content:space-between;align-items:center;padding:18px 20px;border-bottom:1px solid var(--border);flex-shrink:0;}
   .modal-header h3{font-family:'Bebas Neue';font-size:22px;letter-spacing:0.03em;color:var(--amber);}
   .modal-close{background:none;border:none;color:var(--muted);font-size:22px;cursor:pointer;}
