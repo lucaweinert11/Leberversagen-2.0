@@ -149,7 +149,8 @@
   .karten-vorschau .vs-leer{width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:11px;text-align:center;padding:8px;}
   .karten-vorschau .vs-aufgabe{background:var(--surface2);padding:7px 8px;text-align:center;font-size:10px;line-height:1.3;flex-shrink:0;max-height:38%;overflow:hidden;}
 
-  .rueck-vorschau{width:100%;height:190px;border-radius:12px;overflow:hidden;position:relative;background:linear-gradient(135deg,#1c1c1c,#0d0d0d);border:2px solid var(--amber);touch-action:none;cursor:grab;}
+  .rueck-vorschau{width:186px;height:279px;margin:0 auto;border-radius:16px;overflow:hidden;position:relative;background:linear-gradient(135deg,#1c1c1c,#0d0d0d);border:2px solid var(--amber);touch-action:none;cursor:grab;}
+  .gs-warn{display:none;background:#3a1010;border:1px solid var(--danger);color:#ffb3b3;font-size:12px;line-height:1.45;padding:10px 12px;border-radius:10px;white-space:pre-wrap;}
   .rueck-vorschau img{width:100%;height:100%;object-fit:cover;pointer-events:none;-webkit-user-drag:none;}
 
   .zoom-row{display:flex;align-items:center;gap:10px;}
@@ -348,6 +349,8 @@
           <input type="text" id="gsNameInput">
           <button class="primary-btn" onclick="saveGameName()">Namen speichern</button>
 
+          <div class="gs-warn" id="gsWarn"></div>
+
           <label style="margin-top:8px;">Bild für die Kartenrückseite</label>
           <div class="rueck-vorschau" id="rueckVorschau">
             <img id="rueckImg" alt="" style="display:none;">
@@ -392,7 +395,7 @@ function sbClient(baseUrl, key){
     async function lauf(){
       let url = rest + encodeURIComponent(q.table);
       const params = [];
-      if(q.method === 'GET') params.push('select=' + encodeURIComponent(q.columns));
+      if(q.method === 'GET') params.push('select=' + encodeURIComponent(q.columns).replace(/%2C/gi, ','));
       q.filters.forEach(f=>params.push(f));
       if(q.order) params.push('order=' + q.order);
       if(params.length) url += '?' + params.join('&');
@@ -1128,8 +1131,10 @@ async function saveBackImage(){
     }
     const r = await supabase.from('games').update({ back_url: url, back_pos: posText(backPos) }).eq('id', currentGameId);
     if(r.error){
-      if(spalteFehlt(r.error)){ spaltenHinweis(); return; }
-      throw new Error(r.error.message);
+      if(spalteFehlt(r.error)){ zeigeGsWarnung(SQL_HINWEIS); showToast('Nicht gespeichert - siehe Hinweis oben'); return; }
+      zeigeGsWarnung('Fehler beim Speichern: ' + r.error.message);
+      showToast('Fehler beim Speichern');
+      return;
     }
     if(currentGame){
       currentGame.back_url = url;
@@ -1137,11 +1142,14 @@ async function saveBackImage(){
       delete currentGame._backVorschau;
     }
     backFile = null;
+    zeigeGsWarnung('');
     rueckVorschauAktualisieren();
+    rueckseiteAnwenden();
     showToast('Rückseite gespeichert');
   }catch(e){
     console.error(e);
-    showToast('Fehler: ' + (e.message || e));
+    zeigeGsWarnung('Fehler: ' + (e.message || e));
+    showToast('Fehler beim Hochladen');
   }
 }
 
@@ -1149,12 +1157,14 @@ async function removeBackImage(){
   if(!currentGameId) return;
   const r = await supabase.from('games').update({ back_url: null }).eq('id', currentGameId);
   if(r.error){
-    if(spalteFehlt(r.error)){ spaltenHinweis(); return; }
-    showToast('Fehler: ' + r.error.message); return;
+    zeigeGsWarnung(spalteFehlt(r.error) ? SQL_HINWEIS : ('Fehler: ' + r.error.message));
+    return;
   }
   if(currentGame){ currentGame.back_url = null; delete currentGame._backVorschau; }
   backFile = null;
+  zeigeGsWarnung('');
   rueckVorschauAktualisieren();
+  rueckseiteAnwenden();
   showToast('Rückseiten-Bild entfernt');
 }
 
@@ -1242,14 +1252,38 @@ async function importStandardCards(){
 }
 
 /* ---------- GAME SETTINGS (rename/delete game) ---------- */
-function openGameSettingsModal(){
+function zeigeGsWarnung(text){
+  const box = document.getElementById('gsWarn');
+  if(!box) return;
+  if(text){ box.textContent = text; box.style.display = 'block'; }
+  else { box.textContent = ''; box.style.display = 'none'; }
+}
+
+const SQL_HINWEIS = 'In Supabase fehlen noch die Spalten f\u00fcr das R\u00fcckseiten-Bild.\n\nSQL Editor \u2192 neue Abfrage \u2192 einf\u00fcgen \u2192 Run:\n\n' +
+  'alter table cards add column if not exists foto_pos text;\n' +
+  'alter table games add column if not exists back_url text;\n' +
+  'alter table games add column if not exists back_pos text;';
+
+async function pruefeRueckseitenSpalten(){
+  const r = await supabase.from('games').select('id,back_url,back_pos').eq('id', currentGameId);
+  if(r.error){
+    zeigeGsWarnung(spalteFehlt(r.error) ? SQL_HINWEIS : ('Fehler: ' + r.error.message));
+    return false;
+  }
+  zeigeGsWarnung('');
+  return true;
+}
+
+async function openGameSettingsModal(){
   document.getElementById('gsNameInput').value = currentGameName;
   backFile = null;
   if(currentGame) delete currentGame._backVorschau;
   backPos = posLesen(currentGame ? currentGame.back_pos : null);
   document.getElementById('backZoom').value = backPos.z;
+  zeigeGsWarnung('');
   rueckVorschauAktualisieren();
   openModalEl('gameSettingsModal');
+  await pruefeRueckseitenSpalten();
 }
 
 async function saveGameName(){
