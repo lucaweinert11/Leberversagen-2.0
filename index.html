@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0d0d0d">
+<title>Leberversagen</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+  :root{
+    --bg:#0d0d0d;
+    --surface:#181818;
+    --surface2:#212121;
+    --border:#2a2a2a;
+    --amber:#d97706;
+    --amber-light:#f59e0b;
+    --text:#f2f2f0;
+    --muted:#8a8a86;
+    --danger:#dc2626;
+    --safe:#000;
+  }
+  html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;overflow:hidden;}
+  #app{height:100%;width:100%;position:relative;}
+  .screen{position:absolute;inset:0;display:none;flex-direction:column;}
+  .screen.active{display:flex;}
+
+  /* ===== CONFIG SCREEN ===== */
+  #configScreen{align-items:center;justify-content:center;padding:24px;text-align:center;gap:16px;}
+  #configScreen h2{font-family:'Bebas Neue';font-size:28px;color:var(--amber);letter-spacing:0.04em;}
+  #configScreen p{color:var(--muted);font-size:14px;max-width:340px;line-height:1.5;}
+  #configScreen input{width:100%;max-width:340px;padding:14px;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:14px;}
+  #configScreen button{width:100%;max-width:340px;padding:14px;border:none;border-radius:10px;background:var(--amber);color:#0d0d0d;font-family:'Bebas Neue';font-size:18px;letter-spacing:0.06em;cursor:pointer;}
+
+  /* ===== START SCREEN ===== */
+  #startScreen{align-items:center;justify-content:space-between;padding:40px 24px 32px;}
+  .logo-wrap{display:flex;flex-direction:column;align-items:center;gap:6px;padding-top:20px;}
+  .logo-wrap img{width:120px;height:auto;border-radius:14px;box-shadow:0 8px 30px rgba(0,0,0,0.5);}
+  .logo-wrap .brand-fallback{font-family:'Bebas Neue';font-size:34px;color:var(--amber);letter-spacing:0.04em;}
+  .games-list{width:100%;max-width:380px;display:flex;flex-direction:column;gap:12px;flex:1;justify-content:center;overflow-y:auto;padding:20px 0;}
+  .game-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px 20px;display:flex;align-items:center;gap:14px;cursor:pointer;transition:border-color .15s, transform .1s;}
+  .game-card:active{transform:scale(0.98);border-color:var(--amber);}
+  .game-card img{width:44px;height:44px;border-radius:8px;object-fit:cover;flex-shrink:0;}
+  .game-card .game-icon-fallback{width:44px;height:44px;border-radius:8px;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;}
+  .game-card-name{font-family:'Bebas Neue';font-size:20px;letter-spacing:0.03em;}
+  .game-card-count{font-size:12px;color:var(--muted);margin-top:2px;}
+  .bottom-actions{display:flex;flex-direction:column;gap:10px;width:100%;max-width:380px;}
+  .ghost-btn{background:none;border:1px solid var(--border);color:var(--muted);font-family:'DM Sans';font-size:13px;padding:12px;border-radius:10px;cursor:pointer;letter-spacing:0.02em;}
+  .ghost-btn:active{border-color:var(--amber);color:var(--amber);}
+
+  /* ===== GAME SCREEN ===== */
+  #gameScreen{align-items:center;justify-content:space-between;padding:20px 16px 28px;}
+  .game-header{width:100%;display:flex;justify-content:space-between;align-items:flex-start;flex-shrink:0;}
+  .back-btn{background:none;border:none;color:var(--muted);font-size:22px;cursor:pointer;padding:4px 8px;}
+  .game-title-small{font-family:'Bebas Neue';font-size:20px;color:var(--amber);letter-spacing:0.03em;text-align:center;}
+  .counter-box{text-align:right;}
+  .counter-num{font-family:'Bebas Neue';font-size:34px;line-height:1;}
+  .counter-label{font-size:9px;color:var(--muted);letter-spacing:0.1em;text-transform:uppercase;}
+
+  .stage{flex:1;display:flex;align-items:center;justify-content:center;width:100%;perspective:1200px;position:relative;cursor:pointer;}
+  .stack-shadow{position:absolute;width:min(72vw,300px);height:calc(min(72vw,300px) * 1.5);border-radius:16px;background:var(--surface);border:1px solid var(--border);}
+  .stack-shadow:nth-child(1){transform:rotate(-3deg) translate(-5px,5px);}
+  .stack-shadow:nth-child(2){transform:rotate(2deg) translate(4px,4px);}
+
+  .card-wrapper{position:relative;width:min(72vw,300px);height:calc(min(72vw,300px) * 1.5);z-index:10;transform-style:preserve-3d;transition:transform .5s cubic-bezier(.4,.2,.2,1);}
+  .card-wrapper.flipped{transform:rotateY(180deg);}
+  .card-face{position:absolute;inset:0;backface-visibility:hidden;border-radius:16px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.7);display:flex;flex-direction:column;}
+  .card-back{background:linear-gradient(135deg,#1c1c1c,#0d0d0d);border:2px solid var(--amber);display:flex;align-items:center;justify-content:center;}
+  .card-back-logo{font-family:'Bebas Neue';font-size:30px;color:var(--amber);letter-spacing:0.05em;opacity:0.85;text-align:center;padding:20px;}
+  .card-front{background:var(--surface);transform:rotateY(180deg);border:1px solid var(--border);}
+  .card-front .titel-bar{background:var(--surface2);padding:14px 10px;text-align:center;font-family:'Bebas Neue';font-size:22px;letter-spacing:0.03em;color:var(--amber);flex-shrink:0;}
+  .card-front .foto-area{flex:1;background:#000;position:relative;overflow:hidden;min-height:0;}
+  .card-front .foto-area img{width:100%;height:100%;object-fit:cover;}
+  .card-front .foto-area .no-photo{width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:40px;}
+  .card-front .aufgabe-bar{background:var(--surface2);padding:14px 12px;text-align:center;font-size:15px;line-height:1.35;flex-shrink:0;max-height:36%;overflow-y:auto;}
+  .todes-flag{position:absolute;top:8px;right:8px;background:var(--danger);color:#fff;font-size:10px;padding:3px 8px;border-radius:20px;letter-spacing:0.05em;z-index:5;font-weight:600;}
+
+  .bottom-controls{width:100%;max-width:340px;display:flex;flex-direction:column;gap:12px;flex-shrink:0;}
+  .progress-track{width:100%;height:3px;background:var(--surface2);border-radius:2px;overflow:hidden;}
+  .progress-fill{height:100%;background:var(--amber);border-radius:2px;transition:width .4s ease;}
+  .draw-btn{width:100%;padding:16px;border:none;border-radius:12px;background:var(--amber);color:#0d0d0d;font-family:'Bebas Neue';font-size:20px;letter-spacing:0.08em;cursor:pointer;}
+  .draw-btn:active{transform:scale(0.98);}
+  .row-btns{display:flex;gap:10px;}
+  .row-btns button{flex:1;background:none;border:1px solid var(--border);color:var(--muted);font-size:12px;padding:10px;border-radius:10px;cursor:pointer;letter-spacing:0.02em;}
+  .row-btns button:active{border-color:var(--amber);color:var(--amber);}
+
+  /* ===== HISTORY MODAL ===== */
+  .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:100;display:none;align-items:flex-end;justify-content:center;}
+  .modal-overlay.active{display:flex;}
+  .modal-sheet{background:var(--bg);border-radius:20px 20px 0 0;width:100%;max-width:480px;max-height:82vh;display:flex;flex-direction:column;border-top:1px solid var(--border);}
+  .modal-header{display:flex;justify-content:space-between;align-items:center;padding:18px 20px;border-bottom:1px solid var(--border);flex-shrink:0;}
+  .modal-header h3{font-family:'Bebas Neue';font-size:22px;letter-spacing:0.03em;color:var(--amber);}
+  .modal-close{background:none;border:none;color:var(--muted);font-size:22px;cursor:pointer;}
+  .modal-body{overflow-y:auto;padding:16px 20px;flex:1;}
+  .todes-counter-banner{background:var(--surface);border:1px solid var(--danger);border-radius:12px;padding:14px;display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;}
+  .todes-counter-banner .label{font-size:13px;}
+  .todes-counter-banner .num{font-family:'Bebas Neue';font-size:28px;color:var(--danger);}
+  .history-item{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);}
+  .history-item img{width:38px;height:38px;border-radius:8px;object-fit:cover;flex-shrink:0;background:var(--surface2);}
+  .history-item .h-titel{font-size:14px;font-weight:600;}
+  .history-item .h-num{font-size:11px;color:var(--muted);width:22px;flex-shrink:0;}
+  .empty-hint{color:var(--muted);font-size:13px;text-align:center;padding:30px 0;}
+
+  /* ===== EDITOR ===== */
+  #editorScreen{align-items:stretch;justify-content:flex-start;padding:0;}
+  .editor-header{display:flex;justify-content:space-between;align-items:center;padding:18px 20px;border-bottom:1px solid var(--border);flex-shrink:0;}
+  .editor-header h2{font-family:'Bebas Neue';font-size:22px;color:var(--amber);letter-spacing:0.03em;}
+  .editor-body{flex:1;overflow-y:auto;padding:16px 20px 100px;}
+  .editor-card-row{display:flex;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:10px;}
+  .editor-card-row img{width:44px;height:44px;border-radius:8px;object-fit:cover;background:var(--surface2);flex-shrink:0;}
+  .editor-card-row .ec-info{flex:1;min-width:0;}
+  .editor-card-row .ec-titel{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .editor-card-row .ec-aufgabe{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .ec-actions{display:flex;gap:6px;flex-shrink:0;}
+  .icon-btn{background:var(--surface2);border:1px solid var(--border);color:var(--text);width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;}
+  .fab{position:fixed;bottom:24px;right:24px;width:56px;height:56px;border-radius:50%;background:var(--amber);color:#0d0d0d;border:none;font-size:28px;cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,0.5);z-index:20;}
+
+  /* ===== CARD EDIT MODAL ===== */
+  .edit-form{display:flex;flex-direction:column;gap:12px;}
+  .edit-form label{font-size:12px;color:var(--muted);letter-spacing:0.03em;}
+  .edit-form input[type=text],.edit-form textarea{width:100%;padding:12px;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-family:'DM Sans';font-size:14px;}
+  .edit-form textarea{min-height:80px;resize:vertical;}
+  .edit-form .checkbox-row{display:flex;align-items:center;gap:8px;}
+  .photo-preview{width:100%;height:140px;border-radius:10px;background:var(--surface);border:1px dashed var(--border);display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative;cursor:pointer;}
+  .photo-preview img{width:100%;height:100%;object-fit:cover;}
+  .photo-preview .ph-hint{color:var(--muted);font-size:13px;}
+  .edit-form .primary-btn{padding:14px;border:none;border-radius:10px;background:var(--amber);color:#0d0d0d;font-family:'Bebas Neue';font-size:17px;letter-spacing:0.05em;cursor:pointer;margin-top:6px;}
+  .edit-form .danger-btn{padding:12px;border:1px solid var(--danger);background:none;color:var(--danger);border-radius:10px;cursor:pointer;font-size:13px;}
+
+  .toast{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(0.85);background:var(--amber);color:#0d0d0d;font-family:'Bebas Neue';font-size:18px;letter-spacing:0.05em;padding:16px 26px;border-radius:12px;opacity:0;pointer-events:none;transition:opacity .2s, transform .2s;z-index:200;text-align:center;max-width:80vw;}
+  .toast.show{opacity:1;transform:translate(-50%,-50%) scale(1);}
+
+  .spinner{width:20px;height:20px;border:2px solid rgba(255,255,255,0.3);border-top-color:var(--amber);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- CONFIG SCREEN (Supabase Zugangsdaten einmalig eintragen) -->
+  <div class="screen" id="configScreen">
+    <h2>Setup</h2>
+    <p>Trage einmalig deine Supabase-Zugangsdaten ein. Das wird danach auf dem Geraet gespeichert.</p>
+    <input type="text" id="cfgUrl" placeholder="Supabase Project URL">
+    <input type="text" id="cfgKey" placeholder="Supabase anon public Key">
+    <button onclick="saveConfig()">Speichern &amp; starten</button>
+  </div>
+
+  <!-- START SCREEN -->
+  <div class="screen active" id="startScreen">
+    <div class="logo-wrap">
+      <img src="logo.jpg" alt="Logo" onerror="this.style.display='none'; document.getElementById('brandFallback').style.display='block';">
+      <div class="brand-fallback" id="brandFallback" style="display:none;">Leberversagen</div>
+    </div>
+    <div class="games-list" id="gamesList">
+      <div class="spinner"></div>
+    </div>
+    <div class="bottom-actions">
+      <button class="ghost-btn" onclick="openEditorPasswordPrompt()">Bearbeiten-Modus</button>
+    </div>
+  </div>
+
+  <!-- GAME SCREEN -->
+  <div class="screen" id="gameScreen">
+    <div class="game-header">
+      <button class="back-btn" onclick="leaveGame()">←</button>
+      <div class="game-title-small" id="gameTitleSmall"></div>
+      <div class="counter-box">
+        <div class="counter-num" id="deckCount">0</div>
+        <div class="counter-label">im Deck</div>
+      </div>
+    </div>
+
+    <div class="stage" id="stage" onclick="handleStageTap()">
+      <div class="stack-shadow"></div>
+      <div class="stack-shadow"></div>
+      <div class="card-wrapper" id="cardWrapper">
+        <div class="card-face card-back">
+          <div class="card-back-logo">Tippen zum<br>Ziehen</div>
+        </div>
+        <div class="card-face card-front" id="cardFront">
+          <div class="titel-bar" id="cfTitel"></div>
+          <div class="foto-area" id="cfFoto"></div>
+          <div class="aufgabe-bar" id="cfAufgabe"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bottom-controls">
+      <div class="progress-track"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+      <button class="draw-btn" onclick="handleDrawButton()">Karte ziehen</button>
+      <div class="row-btns">
+        <button onclick="openHistory()">📜 Verlauf</button>
+        <button onclick="confirmReset()">↺ Neu mischen</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- HISTORY MODAL -->
+  <div class="modal-overlay" id="historyModal">
+    <div class="modal-sheet">
+      <div class="modal-header">
+        <h3>Verlauf</h3>
+        <button class="modal-close" onclick="closeModal('historyModal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="todes-counter-banner">
+          <div class="label">💀 Todeskarten gezogen</div>
+          <div class="num" id="todesCounterDisplay">0</div>
+        </div>
+        <div id="historyList"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- EDITOR PASSWORD MODAL -->
+  <div class="modal-overlay" id="pwModal">
+    <div class="modal-sheet">
+      <div class="modal-header">
+        <h3>Bearbeiten-Modus</h3>
+        <button class="modal-close" onclick="closeModal('pwModal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="edit-form">
+          <label>Passwort</label>
+          <input type="password" id="pwInput" placeholder="Passwort eingeben">
+          <button class="primary-btn" onclick="checkEditorPassword()">Bestaetigen</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- EDITOR SCREEN -->
+  <div class="screen" id="editorScreen">
+    <div class="editor-header">
+      <button class="back-btn" onclick="exitEditor()">←</button>
+      <h2 id="editorGameTitle">Bearbeiten</h2>
+      <button class="icon-btn" onclick="openGameSettingsModal()">⚙️</button>
+    </div>
+    <div class="editor-body" id="editorBody"></div>
+    <button class="ghost-btn" id="importBtn" style="position:fixed;bottom:24px;left:20px;right:96px;" onclick="importStandardCards()">110 Standardkarten importieren</button>
+    <button class="fab" onclick="openCardEditModal(null)">+</button>
+  </div>
+
+  <!-- CARD EDIT MODAL -->
+  <div class="modal-overlay" id="cardEditModal">
+    <div class="modal-sheet">
+      <div class="modal-header">
+        <h3 id="cardEditTitle">Karte bearbeiten</h3>
+        <button class="modal-close" onclick="closeModal('cardEditModal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="edit-form">
+          <label>Foto</label>
+          <div class="photo-preview" id="photoPreview" onclick="document.getElementById('photoInput').click()">
+            <span class="ph-hint">Tippen um Foto auszuwaehlen</span>
+          </div>
+          <input type="file" id="photoInput" accept="image/*" style="display:none" onchange="handlePhotoSelect(event)">
+
+          <label>Titel</label>
+          <input type="text" id="editTitel" placeholder="z.B. Koffer packen">
+
+          <label>Aufgabe</label>
+          <textarea id="editAufgabe" placeholder="z.B. Spielt eine Runde..."></textarea>
+
+          <div class="checkbox-row">
+            <input type="checkbox" id="editTodeskarte">
+            <label for="editTodeskarte" style="font-size:14px;color:var(--text);">Ist eine Todeskarte</label>
+          </div>
+
+          <button class="primary-btn" onclick="saveCardEdit()">Speichern</button>
+          <button class="danger-btn" id="deleteCardBtn" onclick="deleteCurrentCard()" style="display:none;">Karte loeschen</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- NEW GAME MODAL -->
+  <div class="modal-overlay" id="newGameModal">
+    <div class="modal-sheet">
+      <div class="modal-header">
+        <h3>Neues Spiel</h3>
+        <button class="modal-close" onclick="closeModal('newGameModal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="edit-form">
+          <label>Logo/Bild</label>
+          <div class="photo-preview" id="newGamePhotoPreview" onclick="document.getElementById('newGamePhotoInput').click()">
+            <span class="ph-hint">Tippen um Bild auszuwaehlen</span>
+          </div>
+          <input type="file" id="newGamePhotoInput" accept="image/*" style="display:none" onchange="handleNewGamePhoto(event)">
+          <label>Name des Spiels</label>
+          <input type="text" id="newGameName" placeholder="z.B. Leberversagen 3">
+          <button class="primary-btn" onclick="saveNewGame()">Spiel erstellen</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- GAME SETTINGS MODAL (im Editor, rename / delete game) -->
+  <div class="modal-overlay" id="gameSettingsModal">
+    <div class="modal-sheet">
+      <div class="modal-header">
+        <h3>Spiel-Einstellungen</h3>
+        <button class="modal-close" onclick="closeModal('gameSettingsModal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="edit-form">
+          <label>Name des Spiels</label>
+          <input type="text" id="gsNameInput">
+          <button class="primary-btn" onclick="saveGameName()">Namen speichern</button>
+          <button class="danger-btn" onclick="confirmDeleteGame()">Ganzes Spiel loeschen</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============================================================
+   LEBERVERSAGEN APP
+   ============================================================ */
+
+let supabase = null;
+let currentGameId = null;
+let currentGameName = '';
+let cardsCache = [];        // Karten des aktuellen Spiels
+let cardsById = {};
+let gameState = null;       // { deck_order, gezogene_karten, todeskarten_counter }
+let flipped = false;
+let editingCardId = null;
+let editingPhotoFile = null;
+let newGamePhotoFile = null;
+let isEditorMode = false;
+let pollInterval = null;
+
+/* ---------- FEST HINTERLEGTE SUPABASE-ZUGANGSDATEN ----------
+   Der anon-Key ist oeffentlich (steht in jeder Supabase-Web-App im Quelltext).
+   Dadurch muss kein Geraet mehr etwas einrichten - Link oeffnen und losspielen. */
+const SB_URL = "https://vyyuowegnndkdcgbknnb.supabase.co";
+const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ5eXVvd2Vnbm5ka2RjZ2Jrbm5iIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg1ODgyODMsImV4cCI6MjEwNDE2NDI4M30.yd4JWfRaCTdY-XJGx1VDSx8R6heMLlsuAWvj7Gil3DU";
+
+const EDITOR_PASSWORD = "230898";
+const BUCKET = "karten-bilder";
+
+/* Standard-Kartensatz "Leberversagen 2" - 110 Karten
+   Fotos muessen im Supabase Storage Bucket unter karten-bilder/karten/<dateiname>.jpg liegen */
+const STANDARD_KARTEN = [{"dateiname": "IMG_3812", "titel": "Todeskarte!", "aufgabe": "Befreie dich durch exen oder behalte die Karte und riskiere 2 Gläser in einer Minute exen zu müssen.", "ist_todeskarte": true}, {"dateiname": "IMG_3813", "titel": "Doppelgänger!", "aufgabe": "Wähle eine Person. Du musst eine Runde der Person alles nachmachen: Trinken, Bewegungen, Sprechen.", "ist_todeskarte": false}, {"dateiname": "IMG_3815", "titel": "Halb so wild!", "aufgabe": "Du musst ab sofort nur noch die Hälfte von dem Trinken, was normalerweise nötig wäre.", "ist_todeskarte": false}, {"dateiname": "IMG_3816", "titel": "Triple Trouble!", "aufgabe": "Hast du Glück oder Pech? Deine nächste Karte zählt dreifach.", "ist_todeskarte": false}, {"dateiname": "IMG_3817", "titel": "Romeo!", "aufgabe": "Wurde Julia bereits gezogen? Dann verteilt gemeinsam 10. Wenn nicht, trinke 5. Hast du auch Julia? Dann exen alle außer dir!", "ist_todeskarte": false}, {"dateiname": "IMG_3818", "titel": "Sommerkinder!", "aufgabe": "Alle die zwischen April und September geboren sind, dürfen 3 verteilen.", "ist_todeskarte": false}, {"dateiname": "IMG_3819", "titel": "Leer machen!", "aufgabe": "ALLE leeren ihre Getränke!", "ist_todeskarte": false}, {"dateiname": "IMG_3820", "titel": "Schenk oin!", "aufgabe": "Fülle ein Getränk eines Mitspielers mit 50ml Alkohol (gleicher wie von der Mische) auf.", "ist_todeskarte": false}, {"dateiname": "IMG_3821", "titel": "Beziehungsbonus!", "aufgabe": "Die Personen die am längsten in einer Beziehung sind, dürfen gemeinsam 6 verteilen.", "ist_todeskarte": false}, {"dateiname": "IMG_3822", "titel": "Fingern!", "aufgabe": "Spielt eine Runde Fingern mit einer 50/50 Mische. Der Verlierer muss die Mische exen.", "ist_todeskarte": false}, {"dateiname": "IMG_3823", "titel": "Todeskarte!", "aufgabe": "Befreie dich durch exen oder behalte die Karte und riskiere 2 Gläser in einer Minute exen zu müssen.", "ist_todeskarte": true}, {"dateiname": "IMG_3824", "titel": "Kartenhaus!", "aufgabe": "Baue ein Kartenhaus (3,2,1) innerhalb von einer Minute. Schaffst du es verteile 8, ansonsten trinke selber 4.", "ist_todeskarte": false}, {"dateiname": "IMG_3825", "titel": "Old but Gold!", "aufgabe": "Die älteste Person trinkt 4 Schlücke.", "ist_todeskarte": false}, {"dateiname": "IMG_3826", "titel": "Tattoo Time!", "aufgabe": "Verteile für jedes Tattoo was du hast. Hast du keins, dann trinke 3.", "ist_todeskarte": false}, {"dateiname": "IMG_3827", "titel": "Taufe!", "aufgabe": "Der jüngste Spieler muss 4 trinken.", "ist_todeskarte": false}, {"dateiname": "IMG_3828", "titel": "Schluck-Multiplikator!", "aufgabe": "Ab sofort verdoppeln sich alle Schlücke die du verteilen darfst.", "ist_todeskarte": false}, {"dateiname": "IMG_3829", "titel": "Strip for Sip!", "aufgabe": "Für jedes Kleidungsstück was du ausziehst darfst du 2 Schlücke verteilen! Wenn keins, dann du 5.", "ist_todeskarte": false}, {"dateiname": "IMG_3830", "titel": "7 Sünden!", "aufgabe": "Du willst dir heute richtig den Arsch auskugeln! Trinke 7.", "ist_todeskarte": false}, {"dateiname": "IMG_3831", "titel": "Mangelhaft!", "aufgabe": "Du willst dir die Füße rund trinken und trinkst 5.", "ist_todeskarte": false}, {"dateiname": "IMG_3832", "titel": "Setzen 6!", "aufgabe": "Du willst dich in die Wagerechte beamen und trinkst 6 Schlücke.", "ist_todeskarte": false}, {"dateiname": "IMG_3833", "titel": "Schlafen is nich!", "aufgabe": "Bestimmt die müdeste Person. Die Person muss 4 trinken.", "ist_todeskarte": false}, {"dateiname": "IMG_3834", "titel": "Bisschen zerknittert!", "aufgabe": "Du willst dich heute dumm machen und trinkst 4.", "ist_todeskarte": false}, {"dateiname": "IMG_3835", "titel": "Wasserfall!", "aufgabe": "Alle setzen an, man darf erst absetzen wenn der rechte Nachbar abgesetzt hat oder das Getränk leer ist.", "ist_todeskarte": false}, {"dateiname": "IMG_3836", "titel": "And Again!", "aufgabe": "Löse eine Karte deiner Wahl, die bereits gespielt wurde, erneut aus.", "ist_todeskarte": false}, {"dateiname": "IMG_3837", "titel": "Ladies Night!", "aufgabe": "Alle Frauen trinken 3.", "ist_todeskarte": false}, {"dateiname": "IMG_3838", "titel": "Tabu!", "aufgabe": "Die Wörter Ja und Nein dürfen nicht mehr verwendet werden. 1 Strafschluck bei Missachtung.", "ist_todeskarte": false}, {"dateiname": "IMG_3839", "titel": "Todeskarte!", "aufgabe": "Befreie dich durch exen oder behalte die Karte und riskiere 2 Gläser in einer Minute exen zu müssen.", "ist_todeskarte": true}, {"dateiname": "IMG_3840", "titel": "english please!", "aufgabe": "Eine Runde müssen alle Englisch sprechen. Du musst 2 Runden Englisch sprechen.", "ist_todeskarte": false}, {"dateiname": "IMG_3841", "titel": "Bandit!", "aufgabe": "Behalte die Karte und stehle bei Gelegenheit die Karte eines Mitspielers.", "ist_todeskarte": false}, {"dateiname": "IMG_3842", "titel": "Der beste Freund des Menschen!", "aufgabe": "Trinkt alle gemeinsam für jeden Hund der ein Herrchen am Tisch hat.", "ist_todeskarte": false}, {"dateiname": "IMG_3843", "titel": "Getränkecounter!", "aufgabe": "Verteile für jede Mische die du heute getrunken hast 1 Schluck. Ist es deine erste? Dann mach sie gefälligst leer!", "ist_todeskarte": false}, {"dateiname": "IMG_3844", "titel": "Brosby!", "aufgabe": "Wähle eine Person und trinkt gemeinsam 3 Schlucke.", "ist_todeskarte": false}, {"dateiname": "IMG_3845", "titel": "Wer würde am ehesten?", "aufgabe": "Überlege dir eine Sache die jemand tun könnte. Die Gruppe stimmt ab, wer es am ehesten machen würde. Die gewählte Person trinkt 4.", "ist_todeskarte": false}, {"dateiname": "IMG_3846", "titel": "Todeskarte!", "aufgabe": "Befreie dich durch exen oder behalte die Karte und riskiere 2 Gläser in einer Minute exen zu müssen.", "ist_todeskarte": true}, {"dateiname": "IMG_3847", "titel": "Spiegelselfie!", "aufgabe": "Macht ein Spiegelselfie, jede Person die nicht zu sehen ist muss ihr Glas leeren. Wenn kein Spiegel da, trinken alle 3.", "ist_todeskarte": false}, {"dateiname": "IMG_3848", "titel": "Blinzelduell!", "aufgabe": "Mache ein Blinzelduell gegen einen Spieler deiner Wahl. Der Verlierer trinkt 4.", "ist_todeskarte": false}, {"dateiname": "IMG_3849", "titel": "NPC!", "aufgabe": "Verteile 3 Schlücke an den größten NPC der Runde.", "ist_todeskarte": false}, {"dateiname": "IMG_3850", "titel": "Charlykralle!", "aufgabe": "Suche dir 2 weitere Personen und leert euer Getränk mit der Kralle.", "ist_todeskarte": false}, {"dateiname": "IMG_3851", "titel": "Joker!", "aufgabe": "Behalte die Karte und nutze sie einmalig um dich vor einer Bestrafung zu schützen.", "ist_todeskarte": false}, {"dateiname": "IMG_3852", "titel": "Jawoll!", "aufgabe": "Bestimme eine Person die ihr Glas exen muss!", "ist_todeskarte": false}, {"dateiname": "IMG_3853", "titel": "Lapdance!", "aufgabe": "Bestimme eine Person, die sich für eine Runde auf den Schoß von jemand anderem setzen muss.", "ist_todeskarte": false}, {"dateiname": "IMG_3854", "titel": "Regel!", "aufgabe": "Stelle eine Regel auf.", "ist_todeskarte": false}, {"dateiname": "IMG_3855", "titel": "Try not to laugh!", "aufgabe": "Wer ab sofort zuerst lacht, muss 4 Schlücke trinken.", "ist_todeskarte": false}, {"dateiname": "IMG_3856", "titel": "Todeskarte!", "aufgabe": "Befreie dich durch exen oder behalte die Karte und riskiere 2 Gläser in einer Minute exen zu müssen.", "ist_todeskarte": true}, {"dateiname": "IMG_3857", "titel": "Julia!", "aufgabe": "Wurde Romeo bereits gezogen? Dann verteilt gemeinsam 10. Wenn nicht, trinke 5. Hast du auch Romeo? Dann exen alle außer dir!", "ist_todeskarte": false}, {"dateiname": "IMG_3858", "titel": "Verhaftet!", "aufgabe": "Lege deine Hände hinter deinen Kopf für eine Runde.", "ist_todeskarte": false}, {"dateiname": "IMG_3859", "titel": "Augen zu!", "aufgabe": "Schließe für eine Runde deine Augen.", "ist_todeskarte": false}, {"dateiname": "IMG_3860", "titel": "Kategorie!", "aufgabe": "Wähle eine Kategorie. Wem nichts mehr einfällt oder wer etwas wiederholt trinkt 3 Schlücke.", "ist_todeskarte": false}, {"dateiname": "IMG_3861", "titel": "Daydrinking!", "aufgabe": "Wenn es vor 19 Uhr ist, exe dein Glas!", "ist_todeskarte": false}, {"dateiname": "IMG_3862", "titel": "Men Power!", "aufgabe": "Alle Jungs trinken 4.", "ist_todeskarte": false}, {"dateiname": "IMG_3863", "titel": "Ich merk noch Nix!", "aufgabe": "Du spürst den Alkohol einfach noch nicht. Trinke 8!", "ist_todeskarte": false}, {"dateiname": "IMG_3864", "titel": "Ruhe bitte!", "aufgabe": "Gestern war etwas zu doll und du brauchst deine Ruhe. Eine Runde darf niemand reden.", "ist_todeskarte": false}, {"dateiname": "IMG_3865", "titel": "Stehverbot!", "aufgabe": "Ihr habt euch behindert gesoffen. Die nächste Person die aufsteht muss ihr Glas exen.", "ist_todeskarte": false}, {"dateiname": "IMG_3866", "titel": "Shots everybody!", "aufgabe": "Jeder muss einen Shot trinken.", "ist_todeskarte": false}, {"dateiname": "IMG_3867", "titel": "Lange Nacht!", "aufgabe": "Wenn es nach 22 Uhr ist, exe dein Glas!", "ist_todeskarte": false}, {"dateiname": "IMG_3868", "titel": "Balance!", "aufgabe": "Lege einen Gegenstand für eine Runde auf dein Kopf. Fällt er runter, trinke 6, wenn nicht, verteile 6.", "ist_todeskarte": false}, {"dateiname": "IMG_3869", "titel": "Lifesaver!", "aufgabe": "Wähle eine Person, die die nächste Runde Immun ist.", "ist_todeskarte": false}, {"dateiname": "IMG_3870", "titel": "Halber Schmerz!", "aufgabe": "Alle die weniger als die Hälfte im Glas haben, exen ihr Glas.", "ist_todeskarte": false}, {"dateiname": "IMG_3871", "titel": "Kater!", "aufgabe": "Du bist zu verkatert und verteilst deshalb 6 Schlücke.", "ist_todeskarte": false}, {"dateiname": "IMG_3872", "titel": "Achterpack!", "aufgabe": "Verteile 8 Schlücke", "ist_todeskarte": false}, {"dateiname": "IMG_3873", "titel": "Hilfe benötigt!", "aufgabe": "Bestimme eine Person, die dir die nächsten 2 Runden beim Trinken hilft.", "ist_todeskarte": false}, {"dateiname": "IMG_3874", "titel": "Todeskarte!", "aufgabe": "Befreie dich durch exen oder behalte die Karte und riskiere 2 Gläser in einer Minute exen zu müssen.", "ist_todeskarte": true}, {"dateiname": "IMG_3875", "titel": "Genug für heute!", "aufgabe": "Du hattest genug für heute. Deine Freunde können noch was gebrauchen! Verteile 7 Schlücke.", "ist_todeskarte": false}, {"dateiname": "IMG_3876", "titel": "Snacks!", "aufgabe": "Wer zuletzt etwas gegessen hat, muss 4 Schlücke trinken.", "ist_todeskarte": false}, {"dateiname": "IMG_3877", "titel": "Starthilfe!", "aufgabe": "Um ein bisschen in Schwung zu kommen trinkst du 3 Schlücke.", "ist_todeskarte": false}, {"dateiname": "IMG_3878", "titel": "Irgendwann bestimmt!", "aufgabe": "Alle Singles müssen 3 trinken.", "ist_todeskarte": false}, {"dateiname": "IMG_3879", "titel": "Roll the Dice!", "aufgabe": "Alles zwischen 1-3 musst du selber trinken. 4-6 darfst du verteilen.", "ist_todeskarte": false}, {"dateiname": "IMG_3880", "titel": "Richtungswechsel!", "aufgabe": "Ja, Richtungswechsel halt.", "ist_todeskarte": false}, {"dateiname": "IMG_3881", "titel": "Augenbrauen Power!", "aufgabe": "Hast du zwei vollständige Augenbrauen? Wenn Ja trinke 4 und schätze dich glücklich.", "ist_todeskarte": false}, {"dateiname": "IMG_3882", "titel": "Rauchen ist scheiße!", "aufgabe": "Alle Raucher trinken 4.", "ist_todeskarte": false}, {"dateiname": "IMG_3883", "titel": "Oldtimer", "aufgabe": "Der mit dem ältesten Auto darf 5 Schlücke verteilen.", "ist_todeskarte": false}, {"dateiname": "IMG_3884", "titel": "Ass im Ärmel!", "aufgabe": "Bewahre die Karte auf und nutze Sie um eine andere Karte die du ziehst zu verdoppeln.", "ist_todeskarte": false}, {"dateiname": "IMG_3885", "titel": "Boßeln!", "aufgabe": "Boßelt eine Runde. Der Gewinner darf 8 verteilen, der Verlierer muss 6 trinken.", "ist_todeskarte": false}, {"dateiname": "IMG_3886", "titel": "Getränkeunfall!", "aufgabe": "Du hast einen Getränkeunfall erlitten. Verteile 6 Schlücke.", "ist_todeskarte": false}, {"dateiname": "IMG_3887", "titel": "Du hast es!", "aufgabe": "Entweder man hat es, oder man hat es nicht und du hast es einfach, verteile 9.", "ist_todeskarte": false}, {"dateiname": "IMG_3888", "titel": "Familienvater!", "aufgabe": "Alle Vergebenen müssen 3 trinken.", "ist_todeskarte": false}, {"dateiname": "IMG_3889", "titel": "Wortverbot!", "aufgabe": "Die Wörter Ich und Du dürfen nicht mehr verwendet werden.", "ist_todeskarte": false}, {"dateiname": "IMG_3890", "titel": "A,E,I,O,U!", "aufgabe": "Trinkt für jedes Vokal in eurem Vor- und Nachnamen.", "ist_todeskarte": false}, {"dateiname": "IMG_3891", "titel": "Weich und Blumig!", "aufgabe": "Ein hoch auf alle die Springer trinken. Befindet sich Springer in deinem Glas, dann darfst du 4 verteilen.", "ist_todeskarte": false}, {"dateiname": "IMG_3892", "titel": "Klassiker!", "aufgabe": "Respektiere wie souverän Fenna ihren ersten Trichter gemacht hat und trinke 4 Schlücke.", "ist_todeskarte": false}, {"dateiname": "IMG_3893", "titel": "Sabotage!", "aufgabe": "Fülle ein Getränk deiner Wahl mit 50ml auf. Es darf ALLES sein.", "ist_todeskarte": false}, {"dateiname": "IMG_3894", "titel": "Aufstehen!", "aufgabe": "Eine Runde müssen alle stehen. Bei Stehverbot müssen alle exen.", "ist_todeskarte": false}, {"dateiname": "IMG_3895", "titel": "Friends forever!", "aufgabe": "Trinke 3 Schlucke mit der Person, die du am längsten kennst.", "ist_todeskarte": false}, {"dateiname": "IMG_3896", "titel": "1-5!", "aufgabe": "Alle zeigen auf drei eine Zahl zwischen 1 und 5. Wer die Gleiche Zahl wie du hat, muss 4 trinken.", "ist_todeskarte": false}, {"dateiname": "IMG_3897", "titel": "Verstecken!", "aufgabe": "Alle schließen die Augen, während du einen vorher festgelegten Gegenstand versteckst. Wer ihn findet darf 5 verteilen.", "ist_todeskarte": false}, {"dateiname": "IMG_3898", "titel": "Platztausch!", "aufgabe": "Tausche Plätze mit der Person 3 links von dir.", "ist_todeskarte": false}, {"dateiname": "IMG_3899", "titel": "Selfie!", "aufgabe": "Mache ein Gruppenselfie von deinem Platz aus. Der Rest hat 10 Sekunden um ins Bild zu kommen. Wer nicht drauf ist, ext.", "ist_todeskarte": false}, {"dateiname": "IMG_3900", "titel": "Charme-Bonus!", "aufgabe": "Wähle jemanden der dir ein ernst gemeintes Kompliment macht, ist es gut darf die Person 3 verteilen, ansonsten muss sie 3 trinken, du entscheidest.", "ist_todeskarte": false}, {"dateiname": "IMG_3901", "titel": "Wetterkarte!", "aufgabe": "War/Ist heute gutes Wetter (Sonne)? Dann trinke 5. Bei schlechtem Wetter (regnerisch) darfst du zur Aufmunterung 7 verteilen.", "ist_todeskarte": false}, {"dateiname": "IMG_3902", "titel": "Zeig was du kannst!", "aufgabe": "So viele Schlücke wie du trinkst, darfst du im Anschluss verteilen.", "ist_todeskarte": false}, {"dateiname": "IMG_3903", "titel": "Ekelshot!", "aufgabe": "Trinke einen Shot mit mind. 25%.", "ist_todeskarte": false}, {"dateiname": "IMG_3904", "titel": "Respekt!", "aufgabe": "Der größte Spieler darf 4 verteilen.", "ist_todeskarte": false}, {"dateiname": "IMG_3905", "titel": "Happy Birthday!", "aufgabe": "Wer zuletzt Geburtstag hatte, darf 6 verteilen.", "ist_todeskarte": false}, {"dateiname": "IMG_3906", "titel": "Klein aber fein!", "aufgabe": "Die kleinste Person darf 4 Schlücke verteilen.", "ist_todeskarte": false}, {"dateiname": "IMG_3907", "titel": "Questionking", "aufgabe": "3 Runden darf niemand deine Fragen beantworten.", "ist_todeskarte": false}, {"dateiname": "IMG_3908", "titel": "Winterkinder!", "aufgabe": "Alle die zwischen Oktober und März geboren sind dürfen 3 Schlücke verteilen.", "ist_todeskarte": false}, {"dateiname": "IMG_3909", "titel": "Letzter!", "aufgabe": "Wer zuletzt gekommen ist oder alternativ am Tisch saß muss 4 Schlücke trinken.", "ist_todeskarte": false}, {"dateiname": "IMG_3910", "titel": "Namensverbot!", "aufgabe": "Es dürfen keine Namen mehr genannt werden.", "ist_todeskarte": false}, {"dateiname": "IMG_3911", "titel": "Mr. Worldwide!", "aufgabe": "Verteile einen Schluck für jedes Land was du bisher bereist hast.", "ist_todeskarte": false}, {"dateiname": "IMG_3912", "titel": "Handyverbot!", "aufgabe": "2 Runden darf niemand sein Handy benutzen.", "ist_todeskarte": false}, {"dateiname": "IMG_3913", "titel": "Buffalo!", "aufgabe": "Es darf nur noch mit der schwachen Hand getrunken werden!", "ist_todeskarte": false}, {"dateiname": "IMG_3914", "titel": "Total Reset!", "aufgabe": "Alle Regeln werden aufgehoben.", "ist_todeskarte": false}, {"dateiname": "IMG_3915", "titel": "Drinnen oder Draußen?", "aufgabe": "Wenn ihr gerade Drinnen seid, trinke 5. Seid ihr Draußen, dann verteile 10.", "ist_todeskarte": false}, {"dateiname": "IMG_3916", "titel": "Machtkarte!", "aufgabe": "Mit großer Macht folgt große Verantwortung. Verteile 11.", "ist_todeskarte": false}, {"dateiname": "IMG_3917", "titel": "Lieder raten!", "aufgabe": "Spiele 5 Lieder deiner Wahl. Jede Person die einen Song zuerst errät (Titel reicht) darf 3 verteilen.", "ist_todeskarte": false}, {"dateiname": "IMG_3918", "titel": "Halbierer!", "aufgabe": "Behalte die Karte und nutze sie einmalig um eine Strafe deiner Wahl zu halbieren (Kannst auch andere retten).", "ist_todeskarte": false}, {"dateiname": "IMG_3919", "titel": "Familienkarte!", "aufgabe": "Alle Verwandten stoßen an und trinken jeweils 3 Schlücke. Wenn keiner, dann trinken alle 2, wir sind alle Family!", "ist_todeskarte": false}, {"dateiname": "IMG_3920", "titel": "Storytime!", "aufgabe": "Erzähle eine Story über dich. Sie kann auch erfunden sein. Wer falsch tippt muss je 3 trinken.", "ist_todeskarte": false}, {"dateiname": "IMG_3921", "titel": "Einbeinig!", "aufgabe": "Balanciere eine Runde auf einem Bein, Schaffst du es nicht, trinke 6, sonst verteile sie.", "ist_todeskarte": false}, {"dateiname": "IMG_3922", "titel": "7er Reihe!", "aufgabe": "Kommt ihr über 70 muss niemand trinken, sonst alle 5.", "ist_todeskarte": false}];
+
+/* ---------- CONFIG / INIT ---------- */
+function initApp(){
+  // Zugangsdaten sind fest hinterlegt -> kein Setup mehr noetig.
+  // Alte, auf dem Geraet gespeicherte Daten werden ignoriert und entfernt.
+  localStorage.removeItem('sb_url');
+  localStorage.removeItem('sb_key');
+  try{
+    supabase = window.supabase.createClient(SB_URL, SB_KEY);
+    showScreen('startScreen');
+    loadGamesList();
+  }catch(e){
+    showScreen('configScreen');
+  }
+}
+
+function saveConfig(){
+  const url = document.getElementById('cfgUrl').value.trim();
+  const key = document.getElementById('cfgKey').value.trim();
+  if(!url || !key){ showToast('Bitte beide Felder ausfuellen'); return; }
+  localStorage.setItem('sb_url', url);
+  localStorage.setItem('sb_key', key);
+  supabase = window.supabase.createClient(url, key);
+  showScreen('startScreen');
+  loadGamesList();
+}
+
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function showToast(msg, ms=2200){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(()=>t.classList.remove('show'), ms);
+}
+
+function closeModal(id){ document.getElementById(id).classList.remove('active'); }
+function openModalEl(id){ document.getElementById(id).classList.add('active'); }
+
+/* ---------- START SCREEN: GAMES LIST ---------- */
+async function loadGamesList(){
+  const list = document.getElementById('gamesList');
+  list.innerHTML = '<div class="spinner"></div>';
+  try{
+    const { data: games, error } = await supabase.from('games').select('*').order('sort_order', {ascending:true});
+    if(error) throw error;
+    if(!games || games.length === 0){
+      list.innerHTML = '<div class="empty-hint">Noch keine Spiele. Ueber den Bearbeiten-Modus ein neues Spiel anlegen.</div>';
+      return;
+    }
+    const { data: allCards } = await supabase.from('cards').select('game_id');
+    const counts = {};
+    (allCards||[]).forEach(c=>{ counts[c.game_id] = (counts[c.game_id]||0)+1; });
+
+    list.innerHTML = '';
+    games.forEach(g=>{
+      const div = document.createElement('div');
+      div.className = 'game-card';
+      div.onclick = ()=> enterGame(g.id, g.name);
+      const imgHtml = g.logo_url
+        ? `<img src="${g.logo_url}" alt="">`
+        : `<div class="game-icon-fallback">🎴</div>`;
+      div.innerHTML = `${imgHtml}<div><div class="game-card-name">${escapeHtml(g.name)}</div><div class="game-card-count">${counts[g.id]||0} Karten</div></div>`;
+      list.appendChild(div);
+    });
+  }catch(e){
+    list.innerHTML = '<div class="empty-hint">Fehler beim Laden. Pruefe die Supabase-Verbindung.</div>';
+    console.error(e);
+  }
+}
+
+function escapeHtml(str){
+  const d = document.createElement('div');
+  d.textContent = str||'';
+  return d.innerHTML;
+}
+
+/* ---------- ENTER / LEAVE GAME ---------- */
+async function enterGame(gameId, gameName){
+  currentGameId = gameId;
+  currentGameName = gameName;
+  document.getElementById('gameTitleSmall').textContent = gameName;
+  showScreen('gameScreen');
+  await loadCardsAndState();
+  startPolling();
+}
+
+function leaveGame(){
+  stopPolling();
+  currentGameId = null;
+  showScreen('startScreen');
+  loadGamesList();
+}
+
+function startPolling(){
+  stopPolling();
+  pollInterval = setInterval(async ()=>{
+    if(!currentGameId || flipped) return; // nicht während Karte offen liegt, um UI nicht zu stoeren
+    await refreshStateOnly();
+  }, 4000);
+}
+function stopPolling(){ if(pollInterval) clearInterval(pollInterval); pollInterval = null; }
+
+/* ---------- LOAD CARDS + STATE ---------- */
+async function loadCardsAndState(){
+  const { data: cards, error } = await supabase.from('cards').select('*').eq('game_id', currentGameId).order('sort_order');
+  if(error){ showToast('Fehler beim Laden der Karten'); console.error(error); return; }
+  cardsCache = cards || [];
+  cardsById = {};
+  cardsCache.forEach(c=> cardsById[c.id] = c);
+
+  let { data: state } = await supabase.from('game_state').select('*').eq('game_id', currentGameId).maybeSingle();
+  if(!state){
+    const newOrder = shuffle(cardsCache.map(c=>c.id));
+    const { data: inserted } = await supabase.from('game_state').insert({
+      game_id: currentGameId, deck_order: newOrder, gezogene_karten: [], todeskarten_counter: 0
+    }).select().single();
+    state = inserted;
+  }
+  gameState = state;
+  renderGameUI();
+}
+
+async function refreshStateOnly(){
+  const { data: state } = await supabase.from('game_state').select('*').eq('game_id', currentGameId).maybeSingle();
+  if(state){ gameState = state; renderGameUI(); }
+}
+
+function shuffle(arr){
+  const a = [...arr];
+  for(let i=a.length-1;i>0;i--){
+    const j = Math.floor(Math.random()*(i+1));
+    [a[i],a[j]]=[a[j],a[i]];
+  }
+  return a;
+}
+
+/* ---------- GAME UI RENDER ---------- */
+function renderGameUI(){
+  if(!gameState) return;
+  const remaining = gameState.deck_order.length - gameState.gezogene_karten.length;
+  document.getElementById('deckCount').textContent = Math.max(remaining,0);
+  const total = gameState.deck_order.length || 1;
+  const pct = (gameState.gezogene_karten.length/total)*100;
+  document.getElementById('progressFill').style.width = pct+'%';
+
+  // Wenn eine Karte aktuell "offen" sein sollte laut state, zeigen wir sie (nicht automatisch, User muss tippen)
+}
+
+/* ---------- DRAW CARD FLOW ---------- */
+function handleStageTap(){
+  handleDrawButton();
+}
+
+async function handleDrawButton(){
+  if(!gameState) return;
+
+  if(flipped){
+    // Karte liegt bereits offen -> zurückdrehen und naechste vorbereiten
+    document.getElementById('cardWrapper').classList.remove('flipped');
+    flipped = false;
+    return;
+  }
+
+  const remaining = gameState.deck_order.length - gameState.gezogene_karten.length;
+  if(remaining <= 0){
+    showToast('Deck leer! Wird neu gemischt...');
+    await performReset();
+    return;
+  }
+
+  const nextIndex = gameState.gezogene_karten.length;
+  const nextCardId = gameState.deck_order[nextIndex];
+  const card = cardsById[nextCardId];
+  if(!card){ showToast('Karte nicht gefunden, wird uebersprungen'); 
+    gameState.gezogene_karten.push(nextCardId);
+    await persistState();
+    renderGameUI();
+    return;
+  }
+
+  // UI befuellen
+  document.getElementById('cfTitel').textContent = card.titel;
+  document.getElementById('cfAufgabe').textContent = card.aufgabe;
+  const fotoDiv = document.getElementById('cfFoto');
+  fotoDiv.innerHTML = '';
+  if(card.foto_url){
+    const img = document.createElement('img');
+    img.src = card.foto_url;
+    fotoDiv.appendChild(img);
+  } else {
+    fotoDiv.innerHTML = '<div class="no-photo">🎴</div>';
+  }
+  const existingFlag = document.querySelector('.todes-flag');
+  if(existingFlag) existingFlag.remove();
+  if(card.ist_todeskarte){
+    const flag = document.createElement('div');
+    flag.className = 'todes-flag';
+    flag.textContent = '💀 TODESKARTE';
+    document.getElementById('cardFront').appendChild(flag);
+  }
+
+  document.getElementById('cardWrapper').classList.add('flipped');
+  flipped = true;
+
+  // State aktualisieren
+  gameState.gezogene_karten.push(nextCardId);
+  if(card.ist_todeskarte){ gameState.todeskarten_counter = (gameState.todeskarten_counter||0) + 1; }
+  await persistState();
+  renderGameUI();
+}
+
+async function persistState(){
+  await supabase.from('game_state').update({
+    gezogene_karten: gameState.gezogene_karten,
+    todeskarten_counter: gameState.todeskarten_counter,
+    updated_at: new Date().toISOString()
+  }).eq('game_id', currentGameId);
+}
+
+function confirmReset(){
+  if(confirm('Wirklich neu mischen? Der aktuelle Fortschritt geht verloren.')){
+    performReset();
+  }
+}
+
+async function performReset(){
+  const newOrder = shuffle(cardsCache.map(c=>c.id));
+  await supabase.from('game_state').update({
+    deck_order: newOrder, gezogene_karten: [], todeskarten_counter: 0, updated_at: new Date().toISOString()
+  }).eq('game_id', currentGameId);
+  gameState.deck_order = newOrder;
+  gameState.gezogene_karten = [];
+  gameState.todeskarten_counter = 0;
+  document.getElementById('cardWrapper').classList.remove('flipped');
+  flipped = false;
+  renderGameUI();
+}
+
+/* ---------- HISTORY MODAL ---------- */
+function openHistory(){
+  document.getElementById('todesCounterDisplay').textContent = gameState.todeskarten_counter || 0;
+  const list = document.getElementById('historyList');
+  list.innerHTML = '';
+  if(!gameState.gezogene_karten.length){
+    list.innerHTML = '<div class="empty-hint">Noch keine Karten gezogen.</div>';
+  } else {
+    gameState.gezogene_karten.forEach((id, idx)=>{
+      const card = cardsById[id];
+      if(!card) return;
+      const row = document.createElement('div');
+      row.className = 'history-item';
+      const imgHtml = card.foto_url ? `<img src="${card.foto_url}">` : `<div class="history-item-noimg" style="width:38px;height:38px;background:var(--surface2);border-radius:8px;"></div>`;
+      row.innerHTML = `<div class="h-num">${idx+1}.</div>${imgHtml}<div class="h-titel">${escapeHtml(card.titel)}${card.ist_todeskarte?' 💀':''}</div>`;
+      list.appendChild(row);
+    });
+  }
+  openModalEl('historyModal');
+}
+
+/* ---------- EDITOR PASSWORD ---------- */
+function openEditorPasswordPrompt(){
+  document.getElementById('pwInput').value = '';
+  openModalEl('pwModal');
+}
+
+function checkEditorPassword(){
+  const val = document.getElementById('pwInput').value;
+  if(val === EDITOR_PASSWORD){
+    closeModal('pwModal');
+    isEditorMode = true;
+    openEditorGamePicker();
+  } else {
+    showToast('Falsches Passwort');
+  }
+}
+
+/* We reuse the games list to pick which game to edit, or create new */
+async function openEditorGamePicker(){
+  // Simplest: show start screen list but clicking enters editor instead of play
+  // We toggle a flag and reuse loadGamesList with editor intent
+  const list = document.getElementById('gamesList');
+  showScreen('startScreen');
+  list.innerHTML = '<div class="spinner"></div>';
+  const { data: games } = await supabase.from('games').select('*').order('sort_order');
+  list.innerHTML = '';
+
+  const addBtn = document.createElement('div');
+  addBtn.className = 'game-card';
+  addBtn.style.borderColor = 'var(--amber)';
+  addBtn.innerHTML = `<div class="game-icon-fallback">➕</div><div><div class="game-card-name">Neues Spiel</div><div class="game-card-count">Spiel hinzufuegen</div></div>`;
+  addBtn.onclick = openNewGameModal;
+  list.appendChild(addBtn);
+
+  (games||[]).forEach(g=>{
+    const div = document.createElement('div');
+    div.className = 'game-card';
+    div.onclick = ()=> enterEditor(g.id, g.name);
+    const imgHtml = g.logo_url ? `<img src="${g.logo_url}">` : `<div class="game-icon-fallback">🎴</div>`;
+    div.innerHTML = `${imgHtml}<div><div class="game-card-name">${escapeHtml(g.name)}</div><div class="game-card-count">Bearbeiten</div></div>`;
+    list.appendChild(div);
+  });
+
+  showToast('Bearbeiten-Modus: Spiel auswaehlen');
+}
+
+/* ---------- NEW GAME ---------- */
+function openNewGameModal(){
+  document.getElementById('newGameName').value = '';
+  newGamePhotoFile = null;
+  document.getElementById('newGamePhotoPreview').innerHTML = '<span class="ph-hint">Tippen um Bild auszuwaehlen</span>';
+  openModalEl('newGameModal');
+}
+
+function handleNewGamePhoto(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  newGamePhotoFile = file;
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    document.getElementById('newGamePhotoPreview').innerHTML = `<img src="${reader.result}">`;
+  };
+  reader.readAsDataURL(file);
+}
+
+async function saveNewGame(){
+  const name = document.getElementById('newGameName').value.trim();
+  if(!name){ showToast('Bitte einen Namen eingeben'); return; }
+  showToast('Spiel wird erstellt...');
+  let logoUrl = null;
+  try{
+    const { data: game, error } = await supabase.from('games').insert({ name }).select().single();
+    if(error) throw error;
+    if(newGamePhotoFile){
+      logoUrl = await uploadImage(newGamePhotoFile, `logos/${game.id}-${Date.now()}`);
+      await supabase.from('games').update({ logo_url: logoUrl }).eq('id', game.id);
+    }
+    closeModal('newGameModal');
+    showToast('Spiel erstellt!');
+    enterEditor(game.id, name);
+  }catch(e){
+    console.error(e);
+    showToast('Fehler beim Erstellen');
+  }
+}
+
+/* ---------- UPLOAD HELPER ---------- */
+async function uploadImage(file, path){
+  const ext = file.name.split('.').pop();
+  const fullPath = `${path}.${ext}`;
+  const { error } = await supabase.storage.from(BUCKET).upload(fullPath, file, { upsert:true });
+  if(error) throw error;
+  const { data } = supabase.storage.from(BUCKET).getPublicUrl(fullPath);
+  return data.publicUrl;
+}
+
+/* ---------- EDITOR SCREEN ---------- */
+async function enterEditor(gameId, gameName){
+  currentGameId = gameId;
+  currentGameName = gameName;
+  document.getElementById('editorGameTitle').textContent = gameName;
+  showScreen('editorScreen');
+  await loadEditorCards();
+}
+
+async function loadEditorCards(){
+  const body = document.getElementById('editorBody');
+  body.innerHTML = '<div class="spinner"></div>';
+  const { data: cards, error } = await supabase.from('cards').select('*').eq('game_id', currentGameId).order('sort_order');
+  if(error){ body.innerHTML = '<div class="empty-hint">Fehler beim Laden</div>'; return; }
+  cardsCache = cards || [];
+  cardsById = {};
+  cardsCache.forEach(c=> cardsById[c.id] = c);
+
+  body.innerHTML = '';
+  if(!cardsCache.length){
+    body.innerHTML = '<div class="empty-hint">Noch keine Karten. Unten rechts (+) tippen um eine hinzuzufuegen.</div>';
+    return;
+  }
+  cardsCache.forEach(card=>{
+    const row = document.createElement('div');
+    row.className = 'editor-card-row';
+    const imgHtml = card.foto_url ? `<img src="${card.foto_url}">` : `<div style="width:44px;height:44px;background:var(--surface2);border-radius:8px;"></div>`;
+    row.innerHTML = `
+      ${imgHtml}
+      <div class="ec-info">
+        <div class="ec-titel">${escapeHtml(card.titel)}${card.ist_todeskarte?' 💀':''}</div>
+        <div class="ec-aufgabe">${escapeHtml(card.aufgabe)}</div>
+      </div>
+      <div class="ec-actions">
+        <button class="icon-btn" onclick="openCardEditModal('${card.id}')">✏️</button>
+      </div>
+    `;
+    body.appendChild(row);
+  });
+}
+
+function exitEditor(){
+  isEditorMode = false;
+  currentGameId = null;
+  showScreen('startScreen');
+  loadGamesList();
+}
+
+/* ---------- CARD EDIT MODAL ---------- */
+function openCardEditModal(cardId){
+  editingCardId = cardId;
+  editingPhotoFile = null;
+  const photoPreview = document.getElementById('photoPreview');
+  const deleteBtn = document.getElementById('deleteCardBtn');
+
+  if(cardId){
+    const card = cardsById[cardId];
+    document.getElementById('cardEditTitle').textContent = 'Karte bearbeiten';
+    document.getElementById('editTitel').value = card.titel;
+    document.getElementById('editAufgabe').value = card.aufgabe;
+    document.getElementById('editTodeskarte').checked = card.ist_todeskarte;
+    photoPreview.innerHTML = card.foto_url ? `<img src="${card.foto_url}">` : '<span class="ph-hint">Tippen um Foto auszuwaehlen</span>';
+    deleteBtn.style.display = 'block';
+  } else {
+    document.getElementById('cardEditTitle').textContent = 'Neue Karte';
+    document.getElementById('editTitel').value = '';
+    document.getElementById('editAufgabe').value = '';
+    document.getElementById('editTodeskarte').checked = false;
+    photoPreview.innerHTML = '<span class="ph-hint">Tippen um Foto auszuwaehlen</span>';
+    deleteBtn.style.display = 'none';
+  }
+  openModalEl('cardEditModal');
+}
+
+function handlePhotoSelect(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  editingPhotoFile = file;
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    document.getElementById('photoPreview').innerHTML = `<img src="${reader.result}">`;
+  };
+  reader.readAsDataURL(file);
+}
+
+async function saveCardEdit(){
+  const titel = document.getElementById('editTitel').value.trim();
+  const aufgabe = document.getElementById('editAufgabe').value.trim();
+  const istTodeskarte = document.getElementById('editTodeskarte').checked;
+  if(!titel || !aufgabe){ showToast('Titel und Aufgabe ausfuellen'); return; }
+
+  showToast('Speichern...');
+  try{
+    let fotoUrl = editingCardId ? (cardsById[editingCardId].foto_url || null) : null;
+    if(editingPhotoFile){
+      const path = `karten/${currentGameId}-${Date.now()}`;
+      fotoUrl = await uploadImage(editingPhotoFile, path);
+    }
+
+    if(editingCardId){
+      await supabase.from('cards').update({
+        titel, aufgabe, ist_todeskarte: istTodeskarte, foto_url: fotoUrl
+      }).eq('id', editingCardId);
+    } else {
+      await supabase.from('cards').insert({
+        game_id: currentGameId, titel, aufgabe, ist_todeskarte: istTodeskarte, foto_url: fotoUrl, sort_order: cardsCache.length
+      });
+    }
+    closeModal('cardEditModal');
+    showToast('Gespeichert!');
+    await loadEditorCards();
+  }catch(e){
+    console.error(e);
+    showToast('Fehler beim Speichern');
+  }
+}
+
+async function deleteCurrentCard(){
+  if(!editingCardId) return;
+  if(!confirm('Diese Karte wirklich loeschen?')) return;
+  await supabase.from('cards').delete().eq('id', editingCardId);
+  closeModal('cardEditModal');
+  showToast('Karte geloescht');
+  await loadEditorCards();
+}
+
+/* ---------- IMPORT STANDARD CARDS ---------- */
+async function importStandardCards(){
+  if(!confirm('110 Standardkarten fuer "Leberversagen 2" importieren? Die Bilder muessen vorher in Supabase Storage unter karten-bilder/karten/ hochgeladen sein (Dateiname z.B. IMG_3812.jpg).')) return;
+  showToast('Importiere Karten...');
+  const placeholderResult = supabase.storage.from(BUCKET).getPublicUrl('karten/placeholder.jpg');
+  const baseUrl = placeholderResult.data.publicUrl.replace('karten/placeholder.jpg','karten/');
+
+  const inserts = STANDARD_KARTEN.map((k, idx) => ({
+    game_id: currentGameId,
+    titel: k.titel,
+    aufgabe: k.aufgabe,
+    foto_url: baseUrl + k.dateiname + '.jpg',
+    ist_todeskarte: k.ist_todeskarte,
+    sort_order: idx
+  }));
+
+  try{
+    // In Batches von 50 einfuegen (Supabase mag keine zu grossen Inserts)
+    for(let i=0;i<inserts.length;i+=50){
+      const batch = inserts.slice(i,i+50);
+      const { error } = await supabase.from('cards').insert(batch);
+      if(error) throw error;
+    }
+    showToast('110 Karten importiert!');
+    await loadEditorCards();
+  }catch(e){
+    console.error(e);
+    showToast('Fehler beim Import');
+  }
+}
+
+/* ---------- GAME SETTINGS (rename/delete game) ---------- */
+function openGameSettingsModal(){
+  document.getElementById('gsNameInput').value = currentGameName;
+  openModalEl('gameSettingsModal');
+}
+
+async function saveGameName(){
+  const name = document.getElementById('gsNameInput').value.trim();
+  if(!name) return;
+  await supabase.from('games').update({ name }).eq('id', currentGameId);
+  currentGameName = name;
+  document.getElementById('editorGameTitle').textContent = name;
+  closeModal('gameSettingsModal');
+  showToast('Name gespeichert');
+}
+
+async function confirmDeleteGame(){
+  if(!confirm('ACHTUNG: Das komplette Spiel inkl. aller Karten wird geloescht. Fortfahren?')) return;
+  await supabase.from('games').delete().eq('id', currentGameId);
+  closeModal('gameSettingsModal');
+  showToast('Spiel geloescht');
+  exitEditor();
+}
+
+/* ---------- INIT ---------- */
+window.addEventListener('load', initApp);
+</script>
+</body>
+</html>
